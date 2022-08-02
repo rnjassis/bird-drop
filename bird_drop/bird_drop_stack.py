@@ -1,5 +1,6 @@
 from aws_cdk import (
     Stack,
+    Duration,
     aws_s3 as s3,
     aws_lambda as lambda_,
     aws_iam as iam,
@@ -19,16 +20,21 @@ class BirdDropStack(Stack):
         paramS3 = ssm.StringParameter(self,
                 "bucket-s3", 
                 parameter_name="/bird-drop/s3",
-                string_value=bucket.bucket_arn
+                string_value=bucket.bucket_name
                 )
 
-        s3Policy = iam.PolicyStatement(
+        s3PolicyReadWrite = iam.PolicyStatement(
                 actions=["s3:GetObject", "s3:PutObject"],
+                resources=[bucket.bucket_arn + "/*"]
+                )
+
+        s3PolicyListObjects = iam.PolicyStatement(
+                actions=["s3:ListBucket"],
                 resources=[bucket.bucket_arn]
                 )
 
         stsPolicy = iam.PolicyStatement(
-                actions=["ssm:GetParametersByPath","ssm:GetParameters"],
+                actions=["ssm:GetParametersByPath","ssm:GetParameters","ssm:GetParameter"],
                 resources=[paramS3.parameter_arn]
                 )
 
@@ -36,5 +42,6 @@ class BirdDropStack(Stack):
                 runtime=lambda_.Runtime.PYTHON_3_8,
                 code=lambda_.Code.from_asset('src'),
                 handler='code.handler',
-                initial_policy=[s3Policy, stsPolicy]
+                initial_policy=[s3PolicyReadWrite, s3PolicyListObjects , stsPolicy],
+                timeout=Duration.seconds(10)
                 )
